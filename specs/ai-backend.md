@@ -4,14 +4,10 @@
 
 ## Built-In AI Engine
 
-Tensor Database ships with a native AI engine. There is no separate process to
-configure, no remote endpoint to point at, and no model name to remember. The
-engine is built directly into the database daemon and exposed over the same Unix
-Domain Socket (`/tmp/tensordb.sock`) that all other queries use.
-
-When the daemon starts, the AI engine starts with it. When you call `embed()` or
-`prompt()` in a `.tql` pipeline, the engine handles it inline — no round trips,
-no configuration, no failure domain to manage.
+Tensor Database ships with a native AI engine built directly into the daemon.
+When you call `embed()` or `prompt()` in a `.tql` pipeline, the engine resolves
+them inline during execution — no external model server, no separate process,
+no additional configuration.
 
 ---
 
@@ -124,37 +120,6 @@ and capacity planning.
 
 ---
 
-## Unix Socket — Agent & External Access
-
-The AI engine is also accessible directly over the Unix Domain Socket as a
-lightweight helper for agents and external processes that need embeddings or
-reasoning without running a full `.tql` pipeline.
-
-Any process with access to `/tmp/tensordb.sock` can request an embedding:
-```json
-{
-    "embed": "your input text here",
-    "mode": "SEARCH"
-}
-```
-
-Or a reasoning pass over raw text:
-```json
-{
-    "prompt": "gift ideas under fifty dollars",
-    "text":   "Nike Air Max 270 running shoe...",
-    "mode":   "REASONING"
-}
-```
-
-Both return immediately. `embed` returns a raw float array. `prompt` returns
-a JSON object matching the shape of your declared output schema.
-
-`mode` accepts `SEARCH`, `CLASSIFY`, `CODE`, and `REASONING`. If `mode` is
-omitted it defaults to `SEARCH`.
-
----
-
 ## Verifying the Engine
 ```bash
 tensor db ai status
@@ -170,4 +135,3 @@ Status:        running
 Embedding:     tensor.SEARCH, tensor.CLASSIFY, tensor.CODE
 Prompt:        tensor.REASONING
 Latency:       0.8ms avg embed / 42ms avg prompt (last 100 calls)
-```
