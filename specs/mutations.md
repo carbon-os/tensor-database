@@ -223,13 +223,13 @@ conflict on id
     stock:       200,
     description: null
 }
-on conflict set {
+conflict set {
     price: 54.99,
     stock: 200
 }
 ```
 
-The `on conflict set` block only runs for existing rows. For new rows the full value block is inserted as-is.
+`conflict on` declares the field that triggers conflict detection. `conflict set` declares the fields to update when one is found. For new rows the full value block is inserted as-is.
 
 ### Upsert With Returning
 
@@ -246,7 +246,7 @@ conflict on id
     stock:       200,
     description: null
 }
-on conflict set {
+conflict set {
     price: 54.99,
     stock: 200
 }
@@ -283,7 +283,7 @@ delete from → where → returning
 
 ### Upsert Pipeline
 ```
-upsert into → conflict on → values / on conflict set → returning
+upsert into → conflict on → values → conflict set → returning
 ```
 
 ---

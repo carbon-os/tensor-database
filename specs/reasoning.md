@@ -66,7 +66,8 @@ import "shared/commerce"
 
 from "store/products" as p: commerce.Product
 where p.stock > 0
-prompt("gift ideas under fifty dollars", tensor.REASONING) from p.raw_data as result: commerce.ProductResult
+
+let result: commerce.ProductResult = prompt(p.raw_data, "gift ideas under fifty dollars", tensor.REASONING)
 
 select {
     name:   result.name,
@@ -84,14 +85,14 @@ available to `select`, `where`, `order by`, and any downstream pipeline stage.
 
 ## Composing With the Rest of the Pipeline
 
-Because `result` fields are normal `.tql` fields the full pipeline works as expected.
+Because `result` is a standard `let` binding, the full pipeline works as expected.
 ```tql
 import "shared/commerce"
 
 from "store/products" as p: commerce.Product
 where p.stock > 0
 
-prompt("gift ideas under fifty dollars", tensor.REASONING) from p.raw_data as result: commerce.ProductResult
+let result: commerce.ProductResult = prompt(p.raw_data, "gift ideas under fifty dollars", tensor.REASONING)
 
 where result.price < 50.00
 
@@ -107,7 +108,7 @@ order by avg_price asc
 
 ## What the Engine Does Internally
 
-When a `prompt()` stage is reached the engine handles everything:
+When a `prompt()` call is evaluated the engine handles everything:
 ```
 raw_data text field
     │
@@ -260,7 +261,7 @@ tensor-db
 ## That Is the Whole Surface
 ```
 1. store raw text in any text field
-2. prompt("your question", tensor.REASONING) from p.your_text_field as result: YourOutputSchema
+2. let result: YourOutputSchema = prompt(p.your_text_field, "your question", tensor.REASONING)
 3. use result fields like any other field in the rest of the pipeline
 ```
 

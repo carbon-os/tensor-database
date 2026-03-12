@@ -19,7 +19,6 @@ pipeline that went in and rows that came back.
 ## Transports
 
 ### Unix Domain Socket — Local
-
 ```
 /tmp/tensordb.sock
 ```
@@ -47,7 +46,6 @@ IAM roles. See `iam.md` for access control details.
 Queries are sent as plain text — the `.tql` pipeline string as-is, framed with
 a small binary envelope: a 1-byte message type, a 4-byte length, then the
 pipeline as UTF-8 bytes. The daemon parses and plans it server-side.
-
 ```
 ┌──────────┬────────────────┬─────────────────────────────┐
 │  type    │  length        │  payload                    │
@@ -67,38 +65,30 @@ pipeline as UTF-8 bytes. The daemon parses and plans it server-side.
 ## Sending a Query
 
 A scalar query:
-
-```
-51 00 00 00 3A
-66 72 6F 6D 20 22 73 74 6F 72 65 2F 70 72 6F 64
-75 63 74 73 22 20 61 73 20 70 ...
-```
-
 ```
 type:    0x51          →  Query
 length:  0x0000003A    →  58 bytes follow
 payload: from "store/products" as p: commerce.Product where p.stock > 0 limit 10
 ```
 
-The payload is always the raw `.tql` string. A pipeline that calls `embed()` or
-`prompt()` is no different on the wire — those are resolved server-side during
-execution.
-
+A semantic search query:
 ```
 type:    0x51          →  Query
 length:  0x000000A2    →  162 bytes follow
 payload: from "store/products" as p: commerce.Product
          where p.stock > 0 and p.price < 50.00
-         order by p.embedding <-> embed("gift ideas under fifty dollars")
+         order by p.embedding <-> embed("gift ideas under fifty dollars", tensor.SEARCH)
          limit 10
 ```
 
+A reasoning query — `prompt()` is a `let` binding like any other, resolved
+server-side during execution:
 ```
 type:    0x51          →  Query
 length:  0x000000C4    →  196 bytes follow
 payload: from "store/products" as p: commerce.Product
          where p.stock > 0
-         prompt("gift ideas under fifty dollars", tensor.REASONING) from p.raw_data as result: commerce.ProductResult
+         let result: commerce.ProductResult = prompt(p.raw_data, "gift ideas under fifty dollars", tensor.REASONING)
          select { name: result.name, price: result.price, reason: result.reason }
          order by result.price asc
          limit 10
@@ -113,26 +103,22 @@ soon as the first rows are available — the client does not wait for the full
 result set to materialize.
 
 A scalar result row:
-
 ```json
 {"id":"a1b2c3","name":"Air Max 270","price":99.99,"stock":200}
 {"id":"d4e5f6","name":"Pegasus 40","price":44.99,"stock":85}
 ```
 
 A row with a vector field — vectors are returned as JSON float arrays:
-
 ```json
 {"id":"a1b2c3","name":"Air Max 270","embedding":[0.1823,0.0492,-0.3781,0.2156, ... 764 more]}
 ```
 
-A `prompt()` result row — structured fields from the declared output schema:
-
+A `prompt()` result row — structured fields from the declared output type:
 ```json
 {"name":"Pegasus 40","price":44.99,"reason":"Running shoe under $50, good fit for gift ideas"}
 ```
 
 A hybrid query result — scalar, keyword, and semantic fields together:
-
 ```json
 {"id":"d4e5f6","name":"Pegasus 40","price":44.99,"stock":85,"score":0.94}
 ```
@@ -142,7 +128,6 @@ A hybrid query result — scalar, keyword, and semantic fields together:
 ## End of Results
 
 After the final row the daemon sends a completion envelope:
-
 ```
 ┌──────────┬────────────────┐
 │  type    │  length        │
@@ -164,7 +149,6 @@ When the daemon starts it opens the Unix Domain Socket and the QUIC port, then
 waits for pipelines. Both transports use the same wire format and land in the
 same execution engine — there is no difference in behavior or capability between
 a query sent locally and one sent remotely.
-
 ```bash
 tensor db start        // opens /tmp/tensordb.sock and QUIC port
 tensor db status       // shows active connections on both transports

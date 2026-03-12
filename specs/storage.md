@@ -56,7 +56,7 @@ Scanning raw strings in the `.sst` for keyword matches is too slow at scale. Ten
 
 When text is written to the database it is tokenized. The `.rbm` file maps every token to the set of row IDs that contain it. These sets are compressed using Roaring Bitmaps rather than storing lists of integers.
 
-When you query `where message contains "kernel" and message contains "panic"`, the engine does not scan any text. It loads the compressed bitmap for `"kernel"`, the bitmap for `"panic"`, and executes a hardware-level bitwise `AND`. The resulting bits map directly to row IDs in the `.sst`.
+When you query `where match(t.message, "kernel") and match(t.message, "panic")`, the engine does not scan any text. It loads the compressed bitmap for `"kernel"`, the bitmap for `"panic"`, and executes a hardware-level bitwise `AND`. The resulting bits map directly to row IDs in the `.sst`.
 
 ---
 
@@ -80,7 +80,7 @@ import "shared/support"
 
 from "store/tickets" as t: support.Ticket
 where t.status == "open"                                          // .sst scalar scan
-  and t.message contains "payment"                               // .rbm bitmap lookup
+  and match(t.message, "payment")                                // .rbm bitmap lookup
 order by t.embedding <-> embed("refund", tensor.SEARCH)          // .vec / .hnsw traversal
 limit 20
 ```
