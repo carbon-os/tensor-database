@@ -2,25 +2,29 @@
 
 ---
 
-## Built-In Embeddings
+## Built-In AI Engine
 
-Tensor Database ships with a native embedding engine. There is no separate process to configure, no remote endpoint to point at, and no model name to remember. The engine is built directly into the database daemon and exposed over the same Unix Domain Socket (`/tmp/tensordb.sock`) that all other queries use.
+Tensor Database ships with a native AI engine. There is no separate process to
+configure, no remote endpoint to point at, and no model name to remember. The
+engine is built directly into the database daemon and exposed over the same Unix
+Domain Socket (`/tmp/tensordb.sock`) that all other queries use.
 
-When the daemon starts, the embedding engine starts with it. When you call `embed()` in a `.tql` pipeline, the engine handles it inline — no round trips, no configuration, no failure domain to manage.
+When the daemon starts, the AI engine starts with it. When you call `embed()` or
+`query()` in a `.tql` pipeline, the engine handles it inline — no round trips,
+no configuration, no failure domain to manage.
 
 ---
 
-## `embed()` — The Query Interface
+## `embed()` — Semantic Search
 
-`embed()` takes a text string and an optional use-case constant. With no second argument it defaults to `tensor.SEARCH` silently.
+`embed()` takes a text string and an optional use-case constant. With no second
+argument it defaults to `tensor.SEARCH` silently.
 ```tql
 embed("query")                      // silent default → tensor.SEARCH
 embed("query", tensor.SEARCH)       // explicit retrieval / RAG
 embed("query", tensor.CLASSIFY)     // clustering, categorization, tagging
 embed("query", tensor.CODE)         // code similarity, code search
 ```
-
-The second argument is a namespaced constant, not a string. This means typos and invalid values are caught at compile time before execution begins, consistent with the rest of `.tql`.
 
 ### In a Query Pipeline
 ```tql
@@ -42,7 +46,44 @@ order by p.embedding <-> query_vec
 limit 10
 ```
 
-### Use-Case Constants
+---
+
+## `query()` — Reasoning Over Raw Text
+
+`query()` takes a natural language prompt and a mode constant, and runs the
+nano+aggregator inference pipeline over a raw text field, returning a fully
+typed result that flows into the rest of the pipeline like any other variable.
+```tql
+query("prompt", tensor.REASONING)   // nano+aggregator pipeline — full reading comprehension
+query("prompt", tensor.EXTRACT)     // lighter extraction-only mode
+query("prompt", tensor.CLASSIFY)    // categorization and labeling
+```
+
+### In a Query Pipeline
+```tql
+import "shared/commerce"
+
+from "store/products" as p: commerce.Product
+where p.stock > 0
+query("gift ideas under fifty dollars", tensor.REASONING) from p.raw_data as result: commerce.ProductResult
+
+select {
+    name:   result.name,
+    price:  result.price,
+    reason: result.reason
+}
+order by result.price asc
+limit 10
+```
+
+The mode constant is validated at compile time. Typos and unsupported modes are
+caught before execution begins, consistent with the rest of `.tql`.
+
+---
+
+## Constants
+
+### Embedding Constants — `embed()`
 
 | Constant | Intent | Typical Use |
 |---|---|---|
@@ -50,13 +91,28 @@ limit 10
 | `tensor.CLASSIFY` | Grouping and labeling | Clustering, tagging, categorization |
 | `tensor.CODE` | Code representation | Code search, diff similarity, symbol lookup |
 
+### Query Constants — `query()`
+
+| Constant | Intent | Typical Use |
+|---|---|---|
+| `tensor.REASONING` | Full nano+aggregator pipeline | Complex questions, multi-fact synthesis |
+| `tensor.EXTRACT` | Lightweight extraction | Pulling specific fields from structured prose |
+| `tensor.CLASSIFY` | Categorization and labeling | Tagging, routing, sentiment |
+
+`tensor.CLASSIFY` is shared across both surfaces — the same constant routes to
+the appropriate model depending on whether it is passed to `embed()` or `query()`.
+
 ---
 
 ## Default Models
 
-Tensor Database ships with a custom inference engine built into the daemon. It loads and runs open source embedding models directly — no external runtime, no GPU required for standard workloads. When you call `embed()`, the inference engine encodes your input and returns the vector inline.
+Each constant maps to a curated default model chosen for accuracy, speed, and
+permissive licensing. You never need to reference these directly — they are the
+implementation behind the constant. Model defaults will be updated as better open
+source options are released. Because the model is abstracted behind the constant,
+your `.tql` pipelines require no changes when defaults are upgraded.
 
-Each use-case constant maps to a curated default model chosen for accuracy, speed, and permissive licensing. You never need to reference these directly — they are the implementation behind the constant.
+### Embedding Models
 
 | Constant | Default Model | Dimensions | License |
 |---|---|---|---|
@@ -64,15 +120,26 @@ Each use-case constant maps to a curated default model chosen for accuracy, spee
 | `tensor.CLASSIFY` | `all-MiniLM-L6-v2` | 384 | Apache 2.0 |
 | `tensor.CODE` | `jina-embeddings-v2-base-code` | 768 | Apache 2.0 |
 
-These defaults will be updated as better open source models are released. Because the model is abstracted behind the constant, your `.tql` pipelines require no changes when defaults are upgraded — the same `tensor.SEARCH` call simply gets better results.
+### Query Models
+
+| Constant | Worker Model | Aggregator Model |
+|---|---|---|
+| `tensor.REASONING` | `Qwen2.5-0.5B Q4_K_M` | `Qwen2.5-3B-Instruct Q4_K_M` |
+| `tensor.EXTRACT` | `Qwen2.5-0.5B Q4_K_M` | `Qwen2.5-3B-Instruct Q4_K_M` |
+| `tensor.CLASSIFY` | `Qwen2.5-0.5B Q4_K_M` | `Qwen2.5-3B-Instruct Q4_K_M` |
+
+See `reasoning.md` for details on the nano+aggregator architecture, quantization,
+and capacity planning.
 
 ---
 
 ## Unix Socket — Agent & External Access
 
-The embedding engine is also accessible directly over the Unix Domain Socket as a lightweight helper for agents and external processes that need embeddings without running a full `.tql` pipeline.
+The AI engine is also accessible directly over the Unix Domain Socket as a
+lightweight helper for agents and external processes that need embeddings or
+reasoning without running a full `.tql` pipeline.
 
-Any process with access to `/tmp/tensordb.sock` can request an embedding by sending a JSON payload:
+Any process with access to `/tmp/tensordb.sock` can request an embedding:
 ```json
 {
     "embed": "your input text here",
@@ -80,16 +147,20 @@ Any process with access to `/tmp/tensordb.sock` can request an embedding by send
 }
 ```
 
-The socket returns a raw float array immediately:
+Or a reasoning pass over raw text:
 ```json
 {
-    "vector": [0.12, -0.45, 0.88, "..."]
+    "query": "gift ideas under fifty dollars",
+    "text":  "Nike Air Max 270 running shoe...",
+    "mode":  "REASONING"
 }
 ```
 
-`mode` accepts `SEARCH`, `CLASSIFY`, or `CODE` and maps directly to the same models backing the `tensor.*` constants in `.tql`. If `mode` is omitted it defaults to `SEARCH`.
+Both return immediately. `embed` returns a raw float array. `query` returns
+a JSON object matching the shape of your declared output schema.
 
-This makes the embedding engine a first-class utility for agents operating outside the database — an agent can generate embeddings on the fly to construct semantic queries, rank results, or compare documents without any additional infrastructure.
+`mode` accepts `SEARCH`, `CLASSIFY`, `CODE`, `REASONING`, and `EXTRACT`. If
+`mode` is omitted it defaults to `SEARCH`.
 
 ---
 
@@ -105,6 +176,7 @@ AI Backend Status
 Backend:       built-in
 Socket:        /tmp/tensordb.sock
 Status:        running
-Models:        tensor.SEARCH, tensor.CLASSIFY, tensor.CODE
-Latency:       0.8ms avg (last 100 calls)
+Embedding:     tensor.SEARCH, tensor.CLASSIFY, tensor.CODE
+Query:         tensor.REASONING, tensor.EXTRACT, tensor.CLASSIFY
+Latency:       0.8ms avg embed / 42ms avg query (last 100 calls)
 ```

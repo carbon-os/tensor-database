@@ -15,7 +15,6 @@ internally. From the outside you put text in and structured `.tql` fields come o
 
 Add a `text` field. That is the only addition needed. No vector fields, no token
 arrays, no embedding configuration.
-
 ```tql
 package commerce
 
@@ -39,7 +38,6 @@ type ProductResult {
 ## Loading Data
 
 Insert raw text directly. Nothing special about the write path.
-
 ```go
 // golang — insert raw product text over the unix socket
 payload := map[string]any{
@@ -63,15 +61,12 @@ conn.Write(json.Marshal(payload))
 ---
 
 ## Querying
-
 ```tql
 import "shared/commerce"
 
 from "store/products" as p: commerce.Product
 where p.stock > 0
-generate "gift ideas under fifty dollars"
-    using  p.raw_data
-    as     result: commerce.ProductResult
+query("gift ideas under fifty dollars", tensor.REASONING) from p.raw_data as result: commerce.ProductResult
 
 select {
     name:   result.name,
@@ -90,16 +85,13 @@ available to `select`, `where`, `order by`, and any downstream pipeline stage.
 ## Composing With the Rest of the Pipeline
 
 Because `result` fields are normal `.tql` fields the full pipeline works as expected.
-
 ```tql
 import "shared/commerce"
 
 from "store/products" as p: commerce.Product
 where p.stock > 0
 
-generate "gift ideas under fifty dollars"
-    using  p.raw_data
-    as     result: commerce.ProductResult
+query("gift ideas under fifty dollars", tensor.REASONING) from p.raw_data as result: commerce.ProductResult
 
 where result.price < 50.00
 
@@ -115,8 +107,7 @@ order by avg_price asc
 
 ## What the Engine Does Internally
 
-When a `generate` stage is reached the engine handles everything:
-
+When a `query()` stage is reached the engine handles everything:
 ```
 raw_data text field
     │
@@ -151,7 +142,6 @@ Handles reading comprehension over a single 32k segment. Does not need
 multi-step reasoning. Its only job is:
 
 > "Does this segment contain relevant information for the query, and if so what is it?"
-
 ```
 Recommended:    Qwen2.5-0.5B   Q4_K_M   ~400MB on disk
                                          loaded once, shared across all instances
@@ -162,8 +152,6 @@ Do not go below 0.5B parameters. Below this threshold models begin losing
 facts that are explicitly in their context window — missing negation,
 dropping numbers, losing track of the question mid-context above ~4k tokens.
 That failure mode defeats the architecture entirely.
-
-SmolLM2-360M   Q4_K_M   ~230MB   tested — below the floor, not recommended
 ```
 
 ### Aggregator Model — Smarter
@@ -171,7 +159,6 @@ SmolLM2-360M   Q4_K_M   ~230MB   tested — below the floor, not recommended
 Receives all nano model responses and synthesizes them into structured output
 matching your declared schema. Needs real reasoning and strong instruction
 following — a 0.5B model is too marginal here.
-
 ```
 Recommended:    Qwen2.5-3B-Instruct   Q4_K_M   ~1.9GB
                                                 good reasoning
@@ -194,7 +181,6 @@ techniques to reduce memory pressure, applied in order of quality cost.
 
 Reduce the bits used to represent each model weight via llama.cpp.
 Q4_K_M is the recommended floor for both worker and aggregator.
-
 ```
 Worker model Qwen2.5-0.5B:
 
@@ -220,7 +206,6 @@ tokens are dropped. Surviving tokens remain in their original order.
 
 Factual content (names, numbers, prices, dates) survives aggressively.
 Connective prose is pruned first.
-
 ```
 Compression    Context used    Parallel       Quality
 ratio          per instance    instances      impact
@@ -242,7 +227,6 @@ Run the transformer forward pass over a segment once at index time and
 save the resulting key-value matrices to a `.kvc` file. At query time
 the attention state is injected directly — the nano model never processes
 tokens, it inherits the already-computed state.
-
 ```
 index time:   segment text → full forward pass → save K,V matrices → .kvc
 query time:   load .kvc → inject attention state → append query → respond
@@ -264,7 +248,6 @@ is ready when support stabilizes.
 Reference hardware: dual RTX 4090 (48GB) or RTX 6000 Ada (48GB single card).
 Dual 4090 is the practical recommendation — instances are fully independent
 with no inter-GPU communication so the lack of NVLink is not a bottleneck.
-
 ```
 KV cache per token — Qwen2.5-0.5B (GQA architecture):
 
@@ -275,7 +258,6 @@ KV cache per token — Qwen2.5-0.5B (GQA architecture):
   2  × (float16 bytes)
   = 12,288 bytes ≈ 12KB per token
 ```
-
 ```
 Recommended configuration:
 
@@ -304,7 +286,6 @@ The synthesis quality improvement is worth that cost.
 ---
 
 ## Storage Modules
-
 ```
 .tok    Pre-tokenized int32 arrays
         Engine tokenizes raw_data at write time and caches the result.
@@ -313,7 +294,7 @@ The synthesis quality improvement is worth that cost.
 
 .tok_c  LLMLingua compressed token arrays
         Pruned at write time at the configured compression ratio.
-        Engine uses .tok_c by default when generate is in the pipeline.
+        Engine uses .tok_c by default when query() is in the pipeline.
         Falls back to .tok when .tok_c is not present.
 
 .kvc    Pre-computed KV cache matrices
@@ -324,7 +305,6 @@ The synthesis quality improvement is worth that cost.
 ```
 
 **Full storage layer:**
-
 ```
 tensor-db
 ├── .wal      write-ahead log
@@ -340,10 +320,9 @@ tensor-db
 ---
 
 ## That Is the Whole Surface
-
 ```
 1. store raw text in any text field
-2. generate "your question" using p.your_text_field as result: YourOutputSchema
+2. query("your question", tensor.REASONING) from p.your_text_field as result: YourOutputSchema
 3. use result fields like any other field in the rest of the pipeline
 ```
 
