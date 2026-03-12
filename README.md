@@ -1,234 +1,129 @@
 # Tensor Database
 
-**The declarative, multi-module database for scalar, text, and vector data.**
-
-Tensor Database (`tensor-db`) is a high-performance storage engine built to eliminate the boundary between relational data and semantic search. It operates on a strict, top-to-bottom pipeline architecture (Tensor SQL or `.tsql`) and physically isolates data into purpose-built storage modules — ensuring that massive semantic vector queries never thrash the disk I/O needed for high-throughput scalar lookups.
-
-Designed to run alongside the Tensor Inference Engine, it provides the blazing-fast memory layer required for Zero-Code RAG and autonomous AI agents. And because it ships as a single, compiled binary, the `tensor-db` CLI is absolutely goated.
+A modern embedded database built for applications that need fast relational queries, full-text search, and semantic vector search — all in one engine, with no external dependencies.
 
 ---
 
-## Core Architecture
+## What It Is
 
-Tensor Database discards the monolithic file approach. When you instantiate a logical path, the engine provisions a directory containing specialized storage modules, each optimized for a specific access pattern.
+Tensor Database is a purpose-built data engine that treats vectors, text, and relational data as first-class citizens. Instead of bolting AI capabilities onto a legacy SQL engine, Tensor Database was designed from the ground up around a single pipeline model that handles all three query types natively and concurrently.
 
-1.  **The Scalar Module (`.wal` & `.sst`)**
-    * Handles relational data (`int32`, `uuid`, `timestamp`, `bool`, etc.) using a Log-Structured Merge (LSM) Tree.
-    * Every mutation is immediately appended to the Write-Ahead Log (`.wal`) for strict ACID durability.
-    * Data is flushed to immutable Sorted String Tables (`.sst`) using a PAX layout, allowing the engine to load specific columns into SIMD registers without caching entire rows.
-2.  **The Vector Module (`.vec` & `.hnsw`)**
-    * Stores `vector(n)` fields as pure binary blobs (`.vec`) memory-mapped directly into C++ space for zero-copy access.
-    * Maintains a Hierarchical Navigable Small World (`.hnsw`) graph for microsecond nearest-neighbor semantic search.
-3.  **The Text Module (`.rbm`)**
-    * An inverted index mapping tokenized text to compressed Roaring Bitmaps (`.rbm`).
-    * Enables lightning-fast keyword filtering via hardware-level bitwise operations, bypassing raw string scans entirely.
-
-When a hybrid query is executed, the planner hits all three modules concurrently and merges the results using Reciprocal Rank Fusion.
-
-
+Queries are written in **Tensor Query Language** (`.tql`) — a strict, compile-time validated pipeline language that replaces SQL with a top-to-bottom execution model. No magic columns, no implicit coercions, no runtime surprises.
 
 ---
 
-## Type-Driven Schema (Tensor SQL)
+## What Makes It Different
 
-Tensor Database eliminates the drift between application code and database schema using **Package-Level Type Contracts**. Types are defined in standalone `.tsql` files, imported where needed, and strictly bind data at the storage boundary.
+**One query language, three storage engines.** A single `.tql` pipeline can filter on a scalar field, match a keyword, and rank by semantic similarity in the same query. The storage layer splits these into three purpose-built modules — `.sst` for relational data, `.rbm` for full-text, `.vec` and `.hnsw` for vectors — and merges the results using Reciprocal Rank Fusion.
 
-### 1. Define the Type
-Types are strict and non-nullable by default (append `?` for opt-in nullability).
+**Embeddings are built in.** Tensor Database ships with a native embedding engine. Call `embed()` directly in any `.tql` pipeline — no external model server, no configuration, no separate process. The engine loads and runs open source embedding models inline.
 
-```tsql
-// file: shared/commerce.tsql
-package commerce
+**Compile-time correctness.** Types are defined once in `.tql` package files and enforced at every layer — schema, query, and mutation. If a pipeline is wrong, it fails before touching data, not against live rows.
 
-type Product {
-    id:           uuid
-    name:         text
-    price:        decimal(10,2)
-    stock:        int32
-    embedding:    vector(1536)
-    description:  text?
-}
-
-```
-
-### 2. Instantiate Storage
-
-Mount a logical path and bind it to the type contract.
-
-```tsql
-// file: migrations/001_setup.tsql
-import "shared/commerce"
-
-create table "store/products" as commerce.Product
-
-```
+**Unix-native.** Local access uses Unix Domain Socket IPC with OS-level file permission auth. Remote access uses QUIC with API key bearer tokens bound to path-level IAM roles. The same socket that serves queries also exposes the embedding engine directly to agents and external processes.
 
 ---
 
-## The Query Pipeline
+## Query Language at a Glance
 
-Queries are strict, top-to-bottom pipelines. Data flows through stages; there is no way to reference a downstream value upstream.
-
-```
-from → join → where → group by → let → having → select → order by → limit
-
-```
-
-### Basic Query & Joins
-
-The engine supports inner and left joins, binding paths to variables accessible throughout the pipeline.
-
-```tsql
-import "shared/commerce"
-
-from "store/orders" as o: commerce.Order
-join "store/products" as p: commerce.Product on o.product_id == p.id
-
-where o.status == "completed" and p.price > 50.00
-select {
-    order_id: o.id,
-    product:  p.name,
-    price:    p.price,
-    total:    o.total
-}
-order by o.total desc
-limit 20
-
-```
-
-### Semantic Search & Embedded AI
-
-Tensor Database features a **built-in inference runtime exclusively for embeddings**. The `embed()` function converts text to a `vector(n)` inline, which the planner uses to traverse the `.hnsw` index.
-
-```tsql
+```tql
 import "shared/commerce"
 
 from "store/products" as p: commerce.Product
-where p.stock > 0
-// The embed() call is processed natively by the built-in AI engine
-order by p.embedding <-> embed("waterproof outdoor gear", 'nomic-embed-v1.5')
+where p.stock > 0 and p.price < 50.00
+order by p.embedding <-> embed("gift ideas under fifty dollars")
 limit 10
-
 ```
 
-### Aggregations & `let` Bindings
-
-Compute derived metrics efficiently. `let` bindings inline expressions without building temporary tables.
-
-```tsql
+```tql
 import "shared/commerce"
 
 from "store/orders" as o: commerce.Order
+join "store/customers" as c: commerce.Customer on o.customer_id == c.id
+
 where o.status == "completed"
-group by o.customer_id
+group by c.id, c.name
 
-let total_spent  = sum(o.total)
-let order_count  = count(*)
-let average_order = total_spent / order_count
+let total_spent = sum(o.total)
+let order_count = count(*)
 
-having total_spent > 500.00
+having total_spent > 1000.00
 
 select {
-    customer:      o.customer_id,
+    customer:      c.name,
+    email:         c.email,
     total_spent,
-    average_order
+    order_count,
+    average_order: total_spent / order_count
 }
 order by total_spent desc
-
+limit 25
 ```
 
 ---
 
-## Mutations
+## Embedding Engine
 
-Mutations are simply pipelines that write instead of read. They flow top-to-bottom and can end with a `returning` block to shape the output.
+`embed()` is a first-class primitive in `.tql`. It maps to use-case constants that abstract away the underlying model — your pipelines stay stable as default models are upgraded.
 
-```tsql
-import "shared/commerce"
-
-insert into "store/products" as commerce.Product {
-    id:          gen_uuid(),
-    name:        "Leather Wallet",
-    price:       49.99,
-    stock:       200,
-    embedding:   embed("Full-grain leather bifold wallet", 'nomic-embed-v1.5'),
-    description: null
-}
-returning {
-    id,
-    name
-}
-
+```tql
+embed("query")                      // silent default → tensor.SEARCH
+embed("query", tensor.SEARCH)       // semantic retrieval, RAG
+embed("query", tensor.CLASSIFY)     // clustering, tagging, categorization
+embed("query", tensor.CODE)         // code search, symbol lookup
 ```
 
-Pipeline inserts (`insert ... from`) allow streaming rows directly between paths without materializing intermediate results in memory. Unfiltered deletes (`delete from ...` without a `where` clause) are rejected at compile time.
+| Constant | Default Model | Dimensions |
+|---|---|---|
+| `tensor.SEARCH` | `nomic-embed-text-v1.5` | 768 |
+| `tensor.CLASSIFY` | `all-MiniLM-L6-v2` | 384 |
+| `tensor.CODE` | `jina-embeddings-v2-base-code` | 768 |
+
+The embedding engine is also accessible directly over the Unix Domain Socket for agents and external processes that need embeddings without running a full `.tql` pipeline.
 
 ---
 
-## CLI & Management
+## Storage Architecture
 
-The single `tensor-db` compiled binary serves as both the storage daemon and the stateless execution client. It is built for speed and zero-friction deployment.
+| Module | Format | Purpose |
+|---|---|---|
+| `.wal` | Write-ahead log | ACID durability, crash recovery |
+| `.sst` | Sorted string table (LSM) | Relational scalar data |
+| `.rbm` | Roaring bitmap index | Full-text BM25 keyword search |
+| `.vec` | Raw binary float arrays | Vector storage, zero-copy mmap reads |
+| `.hnsw` | Navigable small world graph | Approximate nearest-neighbor search |
 
-### Service Management
+---
 
-```bash
-# Boot the engine as a background service
-tensor-db start --daemon
-
-# Gracefully flush memtables and shut down
-tensor-db stop
-
-```
-
-### Query Execution
-
-The client ships input over an IPC socket to the daemon.
+## Getting Started
 
 ```bash
-# Execute a file
-tensor-db run query.tsql
+# First-time setup
+tensor db start --setup
 
-# Inline evaluation
-tensor-db eval 'from "store/products" as p: commerce.Product select { id: p.id }' | wc -l
+# Run a migration
+tensor db run migrations/001_setup.tql
 
-# Launch the interactive REPL
-tensor-db shell
+# Interactive shell
+tensor db shell
 
-```
-
-### Output Formatting
-
-Supports `--format table` (default, intelligently truncates vectors), `--format json`, and `--format csv`.
-
-### Snapshots & Backups
-
-Capture consistent on-disk state into a single flat `.dbc` (Database Container) archive without blocking reads or writes.
-
-```bash
-# Snapshot specific paths
-tensor-db snapshot --paths "store/products,store/orders" --out store_backup.dbc
-
-# Inspect a snapshot manifest
-tensor-db snapshot inspect store_backup.dbc
-
+# Check engine status
+tensor db status
 ```
 
 ---
 
-## Security (IAM)
+## Documentation
 
-Security is managed via path-based IAM policies evaluated top-to-bottom. Local connections authenticate via Unix file permissions on the IPC socket, while remote clients require API keys bound to specific roles.
-
-```tsql
-create role storefront
-
-grant to storefront {
-    allow read on "store/products/*"
-    allow read, write on "store/orders/*"
-    deny * on "store/billing/*"
-}
-
-// Generate an API key bound to the storefront role
-create api_key for storefront expires in 90d
-
-```
+| File | Description |
+|---|---|
+| `specs/query.md` | Query pipeline, filtering, projection, semantic search |
+| `specs/mutations.md` | Insert, update, delete, upsert, returning |
+| `specs/joins.md` | Inner joins, left joins, multi-path queries |
+| `specs/aggregations.md` | Group by, aggregate functions, having |
+| `specs/packages.md` | Type definitions, schema, migrations |
+| `specs/types.md` | Full type reference |
+| `specs/ai_backend.md` | Embedding engine, tensor.* constants, socket access |
+| `specs/storage.md` | Physical storage modules and execution model |
+| `specs/iam.md` | Authentication, API keys, path-based access control |
+| `specs/cli.md` | CLI reference, REPL, snapshots, observability |
