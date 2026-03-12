@@ -41,7 +41,7 @@ java -jar antlr-4.13.2-complete.jar \
   -visitor \
   -no-listener \
   -o src/ \
-  DBLexer.g4 DBParser.g4
+  TQLLexer.g4 TQLParser.g4
 ```
 
 The `src/` directory can be deleted and regenerated at any time — never edit files inside it by hand.
@@ -57,5 +57,5 @@ java -jar antlr-4.13.2-complete.jar \
   -visitor \
   -no-listener \
   -o src/ \
-  DBLexer.g4 DBParser.g4
+  TQLLexer.g4 TQLParser.g4
 ```
