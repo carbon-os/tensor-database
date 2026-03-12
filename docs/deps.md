@@ -261,38 +261,6 @@ msgpack::object_handle handle = msgpack::unpack(buffer.data(), buffer.size());
 
 ---
 
-### spdlog — logging
-
-**[spdlog](https://github.com/gabime/spdlog)**
-Header-only mode available. Backed by fmtlib. Fast enough for the hot storage path with async
-sink configuration. Used for WAL replay events, compaction progress, inference lifecycle, and
-daemon startup.
-
-```cpp
-#include <spdlog/spdlog.h>
-spdlog::info("WAL replay complete — {} records recovered", count);
-spdlog::warn("Memtable at {:.0f}% capacity — flush imminent", pct);
-```
-
----
-
-### fmtlib — string formatting
-
-**[fmtlib](https://github.com/fmtlib/fmt)**
-spdlog pulls this in as a dependency. Used directly for query error message formatting,
-diagnostic output, and anywhere `std::string` construction from mixed types would otherwise
-require `stringstream`.
-
-```cpp
-#include <fmt/format.h>
-std::string msg = fmt::format(
-    "type mismatch on field '{}': expected {}, got {}",
-    field_name, expected_type, actual_type
-);
-```
-
----
-
 ## Dependency Summary
 
 ```
@@ -308,11 +276,5 @@ tensor-db
 ├── .vec          mmap (POSIX — no library)
 ├── .hnsw         hnswlib            (or usearch for quantization)
 │
-├── json<T>       simdjson  (parse) + msgpack-cxx  (store)
-├── logging       spdlog + fmtlib
-└── crc32         crc32c
+└── json<T>       simdjson  (parse) + msgpack-cxx  (store)
 ```
-
-Twelve libraries total. Three full builds (antlr4, llama.cpp, msquic) — each owns an entire
-subsystem that would be worse to reimplement. Everything else is header-only or single-file
-amalgamation. No library owns more than one subsystem.
