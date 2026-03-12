@@ -1,6 +1,6 @@
 # Tensor Database
 
-A modern embedded database built for applications that need fast relational queries, full-text search, semantic vector search, and native reasoning over raw text — all in one engine, with no external dependencies.
+A modern AI database built for applications that need fast relational queries, full-text search, semantic vector search, and native reasoning over raw text — all in one engine, with no external dependencies.
 
 Tensor Database is one of the first databases to treat reasoning as a first-class query primitive, alongside filtering, aggregation, and semantic search.
 
