@@ -10,7 +10,7 @@ engine is built directly into the database daemon and exposed over the same Unix
 Domain Socket (`/tmp/tensordb.sock`) that all other queries use.
 
 When the daemon starts, the AI engine starts with it. When you call `embed()` or
-`query()` in a `.tql` pipeline, the engine handles it inline — no round trips,
+`prompt()` in a `.tql` pipeline, the engine handles it inline — no round trips,
 no configuration, no failure domain to manage.
 
 ---
@@ -48,15 +48,13 @@ limit 10
 
 ---
 
-## `query()` — Reasoning Over Raw Text
+## `prompt()` — Reasoning Over Raw Text
 
-`query()` takes a natural language prompt and a mode constant, and runs the
-nano+aggregator inference pipeline over a raw text field, returning a fully
-typed result that flows into the rest of the pipeline like any other variable.
+`prompt()` takes a natural language prompt and runs the nano+aggregator inference
+pipeline over a raw text field, returning a fully typed result that flows into
+the rest of the pipeline like any other variable.
 ```tql
-query("prompt", tensor.REASONING)   // nano+aggregator pipeline — full reading comprehension
-query("prompt", tensor.EXTRACT)     // lighter extraction-only mode
-query("prompt", tensor.CLASSIFY)    // categorization and labeling
+prompt("prompt", tensor.REASONING)   // nano+aggregator pipeline — full reading comprehension
 ```
 
 ### In a Query Pipeline
@@ -65,7 +63,7 @@ import "shared/commerce"
 
 from "store/products" as p: commerce.Product
 where p.stock > 0
-query("gift ideas under fifty dollars", tensor.REASONING) from p.raw_data as result: commerce.ProductResult
+prompt("gift ideas under fifty dollars", tensor.REASONING) from p.raw_data as result: commerce.ProductResult
 
 select {
     name:   result.name,
@@ -91,16 +89,11 @@ caught before execution begins, consistent with the rest of `.tql`.
 | `tensor.CLASSIFY` | Grouping and labeling | Clustering, tagging, categorization |
 | `tensor.CODE` | Code representation | Code search, diff similarity, symbol lookup |
 
-### Query Constants — `query()`
+### Prompt Constants — `prompt()`
 
 | Constant | Intent | Typical Use |
 |---|---|---|
 | `tensor.REASONING` | Full nano+aggregator pipeline | Complex questions, multi-fact synthesis |
-| `tensor.EXTRACT` | Lightweight extraction | Pulling specific fields from structured prose |
-| `tensor.CLASSIFY` | Categorization and labeling | Tagging, routing, sentiment |
-
-`tensor.CLASSIFY` is shared across both surfaces — the same constant routes to
-the appropriate model depending on whether it is passed to `embed()` or `query()`.
 
 ---
 
@@ -120,13 +113,11 @@ your `.tql` pipelines require no changes when defaults are upgraded.
 | `tensor.CLASSIFY` | `all-MiniLM-L6-v2` | 384 | Apache 2.0 |
 | `tensor.CODE` | `jina-embeddings-v2-base-code` | 768 | Apache 2.0 |
 
-### Query Models
+### Prompt Models
 
 | Constant | Worker Model | Aggregator Model |
 |---|---|---|
 | `tensor.REASONING` | `Qwen2.5-0.5B Q4_K_M` | `Qwen2.5-3B-Instruct Q4_K_M` |
-| `tensor.EXTRACT` | `Qwen2.5-0.5B Q4_K_M` | `Qwen2.5-3B-Instruct Q4_K_M` |
-| `tensor.CLASSIFY` | `Qwen2.5-0.5B Q4_K_M` | `Qwen2.5-3B-Instruct Q4_K_M` |
 
 See `reasoning.md` for details on the nano+aggregator architecture, quantization,
 and capacity planning.
@@ -150,17 +141,17 @@ Any process with access to `/tmp/tensordb.sock` can request an embedding:
 Or a reasoning pass over raw text:
 ```json
 {
-    "query": "gift ideas under fifty dollars",
-    "text":  "Nike Air Max 270 running shoe...",
-    "mode":  "REASONING"
+    "prompt": "gift ideas under fifty dollars",
+    "text":   "Nike Air Max 270 running shoe...",
+    "mode":   "REASONING"
 }
 ```
 
-Both return immediately. `embed` returns a raw float array. `query` returns
+Both return immediately. `embed` returns a raw float array. `prompt` returns
 a JSON object matching the shape of your declared output schema.
 
-`mode` accepts `SEARCH`, `CLASSIFY`, `CODE`, `REASONING`, and `EXTRACT`. If
-`mode` is omitted it defaults to `SEARCH`.
+`mode` accepts `SEARCH`, `CLASSIFY`, `CODE`, and `REASONING`. If `mode` is
+omitted it defaults to `SEARCH`.
 
 ---
 
@@ -177,6 +168,6 @@ Backend:       built-in
 Socket:        /tmp/tensordb.sock
 Status:        running
 Embedding:     tensor.SEARCH, tensor.CLASSIFY, tensor.CODE
-Query:         tensor.REASONING, tensor.EXTRACT, tensor.CLASSIFY
-Latency:       0.8ms avg embed / 42ms avg query (last 100 calls)
+Prompt:        tensor.REASONING
+Latency:       0.8ms avg embed / 42ms avg prompt (last 100 calls)
 ```

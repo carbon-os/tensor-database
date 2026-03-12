@@ -8,7 +8,7 @@ Tensor Database operates as a highly orchestrated directory of specialized file 
 
 By splitting the storage layer into distinct modules, Tensor Database ensures that a massive matrix multiplication for a semantic query does not thrash the disk I/O needed for a simple integer lookup.
 
-When you create a table like `"store/products"`, Tensor Database provisions a directory at that path containing three specialized storage modules — each purpose-built for a different class of data.
+When you create a table like `"store/products"`, Tensor Database provisions a directory at that path containing specialized storage modules — each purpose-built for a different class of data.
 
 ---
 
@@ -60,6 +60,18 @@ When you query `where message contains "kernel" and message contains "panic"`, t
 
 ---
 
+## 4. The Reasoning Module (`.tok`)
+
+Raw text fields used with `prompt()` require tokenization before they can be loaded into a nano model context window. Rather than tokenizing at query time on every inference call, Tensor Database pre-computes and caches this work at write time.
+
+### `.tok` — Pre-Tokenized Int32 Arrays
+
+When a `text` field is written, the engine immediately tokenizes the content and stores the resulting int32 token array to a `.tok` file. At query time, loading a segment into a context window becomes a memcpy rather than a tokenization pass.
+
+`.tok` files are invalidated when the worker model changes, since different models use different vocabularies and the cached arrays would be incorrect for a different tokenizer.
+
+---
+
 ## Unified Execution — Reciprocal Rank Fusion
 
 The true power of isolated modules comes together in the query planner. A hybrid query hits all three modules concurrently:
@@ -69,10 +81,10 @@ import "shared/support"
 from "store/tickets" as t: support.Ticket
 where t.status == "open"                                          // .sst scalar scan
   and t.message contains "payment"                               // .rbm bitmap lookup
-order by t.embedding <-> embed("refund", 'nomic-embed-v1.5')     // .vec / .hnsw traversal
+order by t.embedding <-> embed("refund", tensor.SEARCH)          // .vec / .hnsw traversal
 limit 20
 ```
 
 The `embed()` call is dispatched to the configured AI backend while the C++ engine concurrently evaluates the scalar and text predicates. Once the embedding returns, the planner merges all resulting row ID sets using Reciprocal Rank Fusion and streams a single unified result to the client.
 
-See `ai_backend.md` for how `embed()` dispatch and backend configuration works.
+See `ai_backend.md` for how `embed()` and `prompt()` dispatch works.

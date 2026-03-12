@@ -66,7 +66,7 @@ import "shared/commerce"
 
 from "store/products" as p: commerce.Product
 where p.stock > 0
-query("gift ideas under fifty dollars", tensor.REASONING) from p.raw_data as result: commerce.ProductResult
+prompt("gift ideas under fifty dollars", tensor.REASONING) from p.raw_data as result: commerce.ProductResult
 
 select {
     name:   result.name,
@@ -91,7 +91,7 @@ import "shared/commerce"
 from "store/products" as p: commerce.Product
 where p.stock > 0
 
-query("gift ideas under fifty dollars", tensor.REASONING) from p.raw_data as result: commerce.ProductResult
+prompt("gift ideas under fifty dollars", tensor.REASONING) from p.raw_data as result: commerce.ProductResult
 
 where result.price < 50.00
 
@@ -107,7 +107,7 @@ order by avg_price asc
 
 ## What the Engine Does Internally
 
-When a `query()` stage is reached the engine handles everything:
+When a `prompt()` stage is reached the engine handles everything:
 ```
 raw_data text field
     │
@@ -141,7 +141,7 @@ in `.tql` directly — they are daemon configuration.
 Handles reading comprehension over a single 32k segment. Does not need
 multi-step reasoning. Its only job is:
 
-> "Does this segment contain relevant information for the query, and if so what is it?"
+> "Does this segment contain relevant information for the prompt, and if so what is it?"
 ```
 Recommended:    Qwen2.5-0.5B   Q4_K_M   ~400MB on disk
                                          loaded once, shared across all instances
@@ -174,10 +174,10 @@ Stronger:       Qwen2.5-7B-Instruct   Q4_K_M   ~4.4GB
 ## Making Models Smaller When Segments Are Large
 
 When the total raw text across your dataset grows, each segment covers less
-data and more nano instances are needed simultaneously. The engine has three
-techniques to reduce memory pressure, applied in order of quality cost.
+data and more nano instances are needed simultaneously. The engine has one
+technique to reduce memory pressure without quality loss.
 
-### Technique 1 — Quantization (least quality loss)
+### Quantization
 
 Reduce the bits used to represent each model weight via llama.cpp.
 Q4_K_M is the recommended floor for both worker and aggregator.
@@ -197,49 +197,6 @@ The KV caches are the real bottleneck at this size, not the weights.
 Quantization matters more for the aggregator where the weight
 size is meaningful (3B-14B range).
 ```
-
-### Technique 2 — Token Compression (moderate quality loss)
-
-Compress token arrays before loading into context windows using LLMLingua
-pruning. Tokens are scored for informativeness given the query — low scoring
-tokens are dropped. Surviving tokens remain in their original order.
-
-Factual content (names, numbers, prices, dates) survives aggressively.
-Connective prose is pruned first.
-```
-Compression    Context used    Parallel       Quality
-ratio          per instance    instances      impact
-──────────────────────────────────────────────────────
-1:1  (none)    32k tokens      baseline       none
-3:1            ~10k tokens     3×             minimal
-5:1            ~6k tokens      5×             good — recommended ceiling
-10:1           ~3k tokens      10×            noticeable fact loss
-15:1+          ~2k tokens      15×            not recommended
-```
-
-5:1 is the recommended ceiling for factual reasoning tasks. Above this
-the model starts losing relational context between facts even when the
-individual facts survive pruning.
-
-### Technique 3 — KV Cache Pre-computation (no query-time loss)
-
-Run the transformer forward pass over a segment once at index time and
-save the resulting key-value matrices to a `.kvc` file. At query time
-the attention state is injected directly — the nano model never processes
-tokens, it inherits the already-computed state.
-```
-index time:   segment text → full forward pass → save K,V matrices → .kvc
-query time:   load .kvc → inject attention state → append query → respond
-```
-
-No reasoning quality is lost because the forward pass is identical to
-what would happen at query time. The cost is storage — K,V matrices for
-a 0.5B model at 32k context are roughly 384MB per segment. This is
-practical per cluster (one `.kvc` per semantic partition) but not per row.
-
-Requires inference server support for KV cache injection. llama.cpp and
-vllm are adding this — design the `.kvc` storage module now so the engine
-is ready when support stabilizes.
 
 ---
 
@@ -267,17 +224,11 @@ Recommended configuration:
   -  2.0GB  runtime overhead
   = 43.7GB  available for worker KV caches
 
-  Parallel instances and coverage by compression level:
+  At 1:1 (no compression):
 
-  Compression    KV per       Instances    Tokens        Raw text
-  ratio          instance     (~43.7GB)    in flight     covered
-  ──────────────────────────────────────────────────────────────────
-  1:1            384MB        ~113         3.6M          3.6M tokens
-  3:1            128MB        ~341         10.9M         32.7M tokens
-  5:1             77MB        ~567         18.1M         90.7M tokens
-  10:1            38MB        ~800*        25.6M         256M tokens
-
-  * compute bound before memory bound at this level
+  KV per instance    Instances (~43.7GB)    Tokens in flight    Raw text covered
+  ────────────────────────────────────────────────────────────────────────────────
+  384MB              ~113                   3.6M                3.6M tokens
 ```
 
 Running a 3B aggregator instead of 0.5B costs ~20 worker instances.
@@ -291,17 +242,6 @@ The synthesis quality improvement is worth that cost.
         Engine tokenizes raw_data at write time and caches the result.
         Loading a segment into a context window becomes a memcpy.
         Invalidated when the worker model changes.
-
-.tok_c  LLMLingua compressed token arrays
-        Pruned at write time at the configured compression ratio.
-        Engine uses .tok_c by default when query() is in the pipeline.
-        Falls back to .tok when .tok_c is not present.
-
-.kvc    Pre-computed KV cache matrices
-        Forward pass run once per segment at index time.
-        Stored as float16 binary, one file per semantic partition.
-        Injected directly into attention layers at query time.
-        Invalidated when segment contents change.
 ```
 
 **Full storage layer:**
@@ -312,9 +252,7 @@ tensor-db
 ├── .rbm      roaring bitmap inverted index
 ├── .vec      raw float32 vectors
 ├── .hnsw     ANN graph index
-├── .tok      pre-tokenized int32 arrays
-├── .tok_c    compressed token arrays
-└── .kvc      pre-computed KV cache matrices
+└── .tok      pre-tokenized int32 arrays
 ```
 
 ---
@@ -322,10 +260,10 @@ tensor-db
 ## That Is the Whole Surface
 ```
 1. store raw text in any text field
-2. query("your question", tensor.REASONING) from p.your_text_field as result: YourOutputSchema
+2. prompt("your question", tensor.REASONING) from p.your_text_field as result: YourOutputSchema
 3. use result fields like any other field in the rest of the pipeline
 ```
 
 Tokenization, segmentation, nano model fan-out, async parallel inference,
-quantization, compression, aggregation, and structured output conversion
-all happen inside the engine. The query never sees any of it.
+quantization, aggregation, and structured output conversion all happen inside
+the engine. The pipeline never sees any of it.

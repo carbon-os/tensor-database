@@ -18,7 +18,7 @@ Queries are written in **Tensor Query Language** (`.tql`) — a strict, compile-
 
 **One query language, three storage engines.** A single `.tql` pipeline can filter on a scalar field, match a keyword, and rank by semantic similarity in the same query. The storage layer splits these into three purpose-built modules — `.sst` for relational data, `.rbm` for full-text, `.vec` and `.hnsw` for vectors — and merges the results using Reciprocal Rank Fusion.
 
-**Reasoning is built in.** Store raw text in any `text` field and query it with natural language using `query()`. The engine runs a nano+aggregator inference pipeline internally — tokenizing, splitting, fanning out across parallel worker models, and synthesizing the results into fully typed `.tql` fields that flow into the rest of the pipeline like any other variable.
+**Reasoning is built in.** Store raw text in any `text` field and query it with natural language using `prompt()`. The engine runs a nano+aggregator inference pipeline internally — tokenizing, splitting, fanning out across parallel worker models, and synthesizing the results into fully typed `.tql` fields that flow into the rest of the pipeline like any other variable.
 
 **Embeddings are built in.** Tensor Database ships with a native embedding engine. Call `embed()` directly in any `.tql` pipeline — no external model server, no configuration, no separate process. The engine loads and runs open source embedding models inline.
 
@@ -66,7 +66,7 @@ import "shared/commerce"
 
 from "store/products" as p: commerce.Product
 where p.stock > 0
-query("gift ideas under fifty dollars", tensor.REASONING) from p.raw_data as result: commerce.ProductResult
+prompt("gift ideas under fifty dollars", tensor.REASONING) from p.raw_data as result: commerce.ProductResult
 
 select {
     name:   result.name,
@@ -99,11 +99,9 @@ embed("query", tensor.CODE)         // code search, symbol lookup
 
 ## Reasoning Engine
 
-`query()` is a first-class pipeline stage in `.tql`. It runs a nano+aggregator inference pipeline over any raw text field and returns a fully typed result bound to your declared output schema.
+`prompt()` is a first-class pipeline stage in `.tql`. It runs a nano+aggregator inference pipeline over any raw text field and returns a fully typed result bound to your declared output schema.
 ```tql
-query("prompt", tensor.REASONING)   // full reading comprehension, multi-fact synthesis
-query("prompt", tensor.EXTRACT)     // lightweight field extraction
-query("prompt", tensor.CLASSIFY)    // categorization and labeling
+prompt("prompt", tensor.REASONING)   // full reading comprehension, multi-fact synthesis
 ```
 
 The mode constant is validated at compile time. The underlying models are daemon configuration — your pipelines never reference model names directly and require no changes when defaults are upgraded.
@@ -120,8 +118,6 @@ The mode constant is validated at compile time. The underlying models are daemon
 | `.vec` | Raw binary float arrays | Vector storage, zero-copy mmap reads |
 | `.hnsw` | Navigable small world graph | Approximate nearest-neighbor search |
 | `.tok` | Pre-tokenized int32 arrays | Fast segment loading for reasoning |
-| `.tok_c` | Compressed token arrays | LLMLingua-pruned tokens for parallel inference |
-| `.kvc` | KV cache matrices | Pre-computed attention state for zero-cost query-time inference |
 
 ---
 
@@ -153,7 +149,7 @@ tensor db status
 | `specs/packages.md` | Type definitions, schema, migrations |
 | `specs/types.md` | Full type reference |
 | `specs/ai_backend.md` | Embedding and reasoning engine, tensor.* constants, socket access |
-| `specs/reasoning.md` | query() pipeline stage, nano+aggregator architecture, capacity planning |
+| `specs/reasoning.md` | prompt() pipeline stage, nano+aggregator architecture, capacity planning |
 | `specs/storage.md` | Physical storage modules and execution model |
 | `specs/iam.md` | Authentication, API keys, path-based access control |
 | `specs/cli.md` | CLI reference, REPL, snapshots, observability |
