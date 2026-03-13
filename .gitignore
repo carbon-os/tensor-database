@@ -10,3 +10,5 @@ vcpkg_installed/
 build/
 
 models/
+
+node_modules/
