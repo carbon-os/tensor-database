@@ -8,22 +8,38 @@
 tensor-db/
 │
 ├── tql/
+│   ├── CMakeLists.txt
 │   ├── include/
 │   │   └── tensor/
 │   │       └── tql/
-│   │           ├── ast.hpp
-│   │           ├── lexer.hpp
-│   │           ├── parser.hpp
 │   │           ├── pipeline.hpp
+│   │           ├── resolver.hpp                (PackageResolver interface)
 │   │           ├── stage.hpp
-│   │           ├── result.hpp
-│   │           └── types.hpp
-│   └── src/
-│       ├── ast.cpp
-│       ├── lexer.cpp
-│       ├── parser.cpp
-│       ├── pipeline.cpp
-│       └── stage.cpp
+│   │           ├── types.hpp
+│   │           ├── TQLLexer.h                  (generated)
+│   │           ├── TQLParser.h                 (generated)
+│   │           ├── TQLParserVisitor.h          (generated)
+│   │           └── TQLParserBaseVisitor.h      (generated)
+│   ├── src/
+│   │   ├── semantic.hpp                        (internal — declares all pass functions)
+│   │   ├── compiler.cpp                        (ANTLR visitor → unverified Pipeline)
+│   │   ├── import_resolver.cpp                 (Pass 1 — import resolution)
+│   │   ├── scope_checker.cpp                   (Pass 2 — scope resolution + SymbolTable)
+│   │   ├── type_checker.cpp                    (Pass 3 — type checking)
+│   │   ├── aggregate_checker.cpp               (Pass 4 — aggregate context validation)
+│   │   ├── constant_folder.cpp                 (Pass 5 — constant folding)
+│   │   ├── TQLLexer.cpp                        (generated)
+│   │   ├── TQLParser.cpp                       (generated)
+│   │   ├── TQLParserVisitor.cpp                (generated)
+│   │   └── TQLParserBaseVisitor.cpp            (generated)
+│   └── tests/
+│       ├── main.cpp
+│       └── scripts/
+│           ├── aggregate.tql
+│           ├── delete.tql
+│           ├── insert.tql
+│           ├── query.tql
+│           └── update.tql
 │
 ├── storage/
 │   ├── include/
@@ -87,7 +103,7 @@ tensor-db/
 
 | Sub-project   | Namespace                 | Owns                                                               |
 |---------------|---------------------------|--------------------------------------------------------------------|
-| `tql/`        | `tensor::tql`             | ANTLR4 wrappers, AST, pipeline and stage model, compile-time types |
+| `tql/`        | `tensor::tql`             | ANTLR4 wrappers, pipeline and stage model, five-pass compiler      |
 | `storage/`    | `tensor::storage`         | WAL, SST, RBM, VEC, HNSW, TOK — all physical storage modules      |
 | `inference/`  | `tensor::inference`       | llama.cpp wrappers for `embed()` and `prompt()`                    |
 | `net/`        | `tensor::net`             | Unix Domain Socket IPC, msquic remote transport, connection model  |
@@ -115,30 +131,73 @@ Nothing flows upward. `db/` is the only integration point.
 
 ```cpp
 #include <tensor/tql/pipeline.hpp>
+#include <tensor/tql/resolver.hpp>
 
 using namespace tensor::tql;
 
+// Without a resolver — imports skipped, UserDefined field validation bypassed.
+// Variable scope and all structural checks still run.
 Result<Pipeline> result = Pipeline::compile(source);
-if (!result.ok()) return result.error();
+
+// With a resolver — full five-pass validation including import resolution,
+// field existence checks, and type compatibility.
+Result<Pipeline> result = Pipeline::compile(source, &my_resolver);
+
+if (!result.ok()) {
+    // result.error() carries line, column, and message.
+    return result.error();
+}
 
 Pipeline pipeline = result.value();
 
-pipeline.target()      // "store/products"
-pipeline.type()        // commerce.Product
-pipeline.mutation()    // Mutation::None
+pipeline.target()     // "store/products"
+pipeline.from_var()   // "p"
+pipeline.type()       // commerce.Product
+pipeline.mutation()   // Mutation::None
+pipeline.registry()   // PackageRegistry — resolved types from imported packages
 
 for (const Stage& stage : pipeline.stages()) {
     switch (stage.kind()) {
-        case Stage::Kind::Filter:
-        case Stage::Kind::TextMatch:
-        case Stage::Kind::Embed:
-        case Stage::Kind::Prompt:
-        case Stage::Kind::Project:
-        case Stage::Kind::OrderBy:
-        case Stage::Kind::Limit:
+        case Stage::Kind::Filter:   ...
+        case Stage::Kind::Join:     ...
+        case Stage::Kind::GroupBy:  ...
+        case Stage::Kind::Having:   ...
+        case Stage::Kind::Let:      ...
+        case Stage::Kind::Project:  ...
+        case Stage::Kind::OrderBy:  ...
+        case Stage::Kind::Limit:    ...
     }
 }
 ```
+
+#### Compiler pass summary
+
+| Pass | File                    | Input              | Validates / produces                                   |
+|------|-------------------------|--------------------|--------------------------------------------------------|
+| 0    | ANTLR (generated)       | source text        | Parse tree; syntax errors with line/column             |
+| 1    | `import_resolver.cpp`   | parse tree         | `PackageRegistry` — loads and registers package types  |
+| 2    | `scope_checker.cpp`     | stage list         | `SymbolTable` — variable scope, field existence        |
+| 3    | `type_checker.cpp`      | stage list + sym   | Type compatibility, predicate bool, arithmetic types   |
+| 4    | `aggregate_checker.cpp` | stage list         | Aggregate context rules, having without group by       |
+| 5    | `constant_folder.cpp`   | stage list         | Collapses literal expressions at compile time          |
+
+#### db::Engine implements PackageResolver
+
+```cpp
+// db/engine.hpp
+class Engine : public tensor::tql::PackageResolver {
+public:
+    tensor::tql::Result<std::string> resolve(std::string_view import_path) override;
+    // Loads .tql package files from the configured package root directory.
+};
+```
+
+#### What the engine is still responsible for at runtime
+
+- Path existence — does `"store/products"` name a live `create table` path
+- IAM permission checks — does the API key's role allow this operation
+- Vector dimension matching — `embed()` output dimension vs. the field's declared `vector(n)`
+- Role name uniqueness on `create role`
 
 ---
 
@@ -153,28 +212,23 @@ for (const Stage& stage : pipeline.stages()) {
 
 using namespace tensor::storage;
 
-// WAL — write before anything else touches disk
 WAL wal("store/products/.wal");
 wal.append(record);
 wal.flush();
 
-// SST — scalar reads, predicate pushdown
 SST sst("store/products/.sst");
 sst.scan("status", Predicate::Eq("completed"));
 sst.get(row_id);
 
-// RBM — full-text keyword resolution
 RBM rbm("store/products/.rbm");
 Roaring result = rbm.get("kernel") & rbm.get("panic");
 
-// VEC — zero-copy mmap read
 VEC vec("store/products/.vec");
-const float* vectors = vec.data();   // raw mmap pointer, ready for HNSW
+const float* vectors = vec.data();
 
-// HNSW — approximate nearest-neighbor over .vec
 HNSW hnsw("store/products/.hnsw", 768);
 hnsw.insert(row_id, vector_ptr);
-auto matches = hnsw.search(query_vec, k);  // returns row IDs
+auto matches = hnsw.search(query_vec, k);
 ```
 
 ---
@@ -187,25 +241,16 @@ auto matches = hnsw.search(query_vec, k);  // returns row IDs
 
 using namespace tensor::inference;
 
-// Embed — called when pipeline hits Stage::Kind::Embed
 EmbedEngine embed("models/nomic-embed-text-v1.5.gguf");
-
 std::vector<float> vec = embed.run("gift ideas under fifty dollars", Constant::Search);
-// vec.size() == 768, ready to drop into HNSW search
 
-// Reasoning — called when pipeline hits Stage::Kind::Prompt
 ReasoningEngine reasoning(
-    "models/qwen2.5-0.5b-q4_k_m.gguf",       // nano worker
-    "models/qwen2.5-3b-instruct-q4_k_m.gguf"  // aggregator
+    "models/qwen2.5-0.5b-q4_k_m.gguf",
+    "models/qwen2.5-3b-instruct-q4_k_m.gguf"
 );
-
-ReasoningResult result = reasoning.run(
-    "gift ideas under fifty dollars",  // prompt
-    raw_text,                          // p.raw_data content
-    output_schema                      // commerce.ProductResult — output contract
-);
-
-result.field("name");    // tensor::tql::Value — flows back into pipeline as typed field
+ReasoningResult result = reasoning.run("gift ideas under fifty dollars",
+                                        raw_text, output_schema);
+result.field("name");
 result.field("price");
 result.field("reason");
 ```
@@ -220,23 +265,16 @@ result.field("reason");
 
 using namespace tensor::net;
 
-// Unix Domain Socket — local clients
 UnixSocket sock("/tmp/tensordb.sock");
 sock.listen();
-
 sock.on_pipeline([](Connection& conn, std::string_view source) {
-    // source is the raw .tql string off the wire
-    // hand it to tql::Pipeline::compile(), execute, stream rows back
-    conn.stream(row);        // newline-delimited JSON rows
-    conn.complete();         // 0x43 CommandComplete envelope
+    conn.stream(row);
+    conn.complete();
 });
 
-// QUIC — remote clients
 QuicListener quic(port, tls_config);
 quic.listen();
-
 quic.on_pipeline([](Connection& conn, std::string_view source) {
-    // identical handler — same wire format, same execution path
     conn.stream(row);
     conn.complete();
 });
@@ -246,18 +284,32 @@ quic.on_pipeline([](Connection& conn, std::string_view source) {
 
 ## Notes
 
-**`tql/types.hpp`** defines the core type enum (`int32`, `uuid`, `text`, `vector(n)`, etc.)
-and `Result<T>` — shared across the compiler internals. These are TQL-level types only,
-not storage representations.
+**`tql/include/tensor/tql/pipeline.hpp`** is the single public entry point.
+`Pipeline::compile(source, resolver?)` runs all five passes and returns either a
+fully validated, constant-folded `Pipeline` or an `Error` with line/column/message.
 
-**`db/executor.cpp`** is where the compiled `tensor::tql::Pipeline` meets storage and
-inference. It walks the pipeline stages and dispatches to the appropriate sub-project.
+**`tql/include/tensor/tql/resolver.hpp`** declares the `PackageResolver` interface.
+`db::Engine` implements it by loading `.tql` package files from the configured
+package root. Passing `nullptr` skips import resolution — variable scope and
+structural checks still run; UserDefined field validation is bypassed.
 
-**`db/engine.cpp`** owns instance-level setup — opening storage paths, booting the inference
-engine, binding the socket and QUIC port.
+**`tql/src/semantic.hpp`** is an internal header. It declares the `SymbolTable`
+struct and all five pass functions. It is not installed and is never included by
+any public header.
 
-**ANTLR4 generated files** (`TQLLexer.cpp`, `TQLParser.cpp`, `TQLVisitor.cpp`) are generated
-into `tql/src/` at build time. They are not checked in — the `.g4` grammar is the source of
-truth.
+**ANTLR4 generated files** (`TQLLexer`, `TQLParser`, `TQLParserVisitor`,
+`TQLParserBaseVisitor` — `.h` and `.cpp`) are generated at build time from
+`TQLLexer.g4` and `TQLParser.g4`. They are not checked in.
 
-**`cli/`** lives inside `db/` as a leaf. Nothing outside of `db/` depends on it.
+**`tql/tests/main.cpp`** is the `tql-test` binary. It calls `Pipeline::compile()`
+without a resolver — imports are skipped, the five passes still run on scope,
+types, aggregates, and constants.
+
+**`db/executor.cpp`** walks the compiled `Pipeline` stages and dispatches to
+`storage/` and `inference/`. It receives a fully resolved, type-checked Pipeline
+and does not re-derive types or validate scope.
+
+**`db/engine.cpp`** owns instance-level setup and implements `PackageResolver`.
+It passes itself to `Pipeline::compile()` so package files are resolved from disk.
+
+**`cli/`** lives inside `db/` as a leaf. Nothing outside `db/` depends on it.

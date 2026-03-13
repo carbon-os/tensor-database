@@ -1,0 +1,12 @@
+import "shared/commerce"
+
+update "store/products" as p: commerce.Product
+where p.stock < 20
+set {
+    stock: p.stock + 100
+}
+returning {
+    id:        p.id,
+    name:      p.name,
+    new_stock: p.stock
+}

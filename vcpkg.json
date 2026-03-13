@@ -1,0 +1,26 @@
+{
+  "name": "tensor-db",
+  "version": "0.1.0",
+  "dependencies": [
+    "antlr4",
+    "crc32c",
+    "hnswlib",
+    "llama-cpp",
+    "msgpack-c",
+    "msquic",
+    "roaring",
+    "simdjson",
+    "snappy"
+  ],
+  "overrides": [
+    { "name": "antlr4", "version": "4.13.2", "port-version": 1 },
+    { "name": "crc32c", "version": "1.1.2", "port-version": 2 },
+    { "name": "hnswlib", "version": "0.8.0" },
+    { "name": "llama-cpp", "version": "7146" },
+    { "name": "msgpack-c", "version": "6.1.0" },
+    { "name": "msquic", "version": "2.4.8" },
+    { "name": "roaring", "version": "4.6.0" },
+    { "name": "simdjson", "version": "4.3.1" },
+    { "name": "snappy", "version": "1.2.2", "port-version": 1 }
+  ]
+}

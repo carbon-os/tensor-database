@@ -1,0 +1,9 @@
+import "shared/commerce"
+
+delete from "store/orders" as o: commerce.Order
+where o.status == "expired"
+returning {
+    id:         o.id,
+    customer:   o.customer_id,
+    deleted_at: now()
+}

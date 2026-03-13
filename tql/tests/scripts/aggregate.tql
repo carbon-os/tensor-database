@@ -1,0 +1,14 @@
+import "shared/commerce"
+
+from "store/orders" as o: commerce.Order
+join "store/products" as p: commerce.Product on o.product_id == p.id
+where o.status == "completed"
+group by p.id, p.name
+let gross_revenue: decimal(10,2) = sum(o.total)
+having gross_revenue > 10000.00
+select {
+    product:       p.name,
+    gross_revenue
+}
+order by gross_revenue desc
+limit 25

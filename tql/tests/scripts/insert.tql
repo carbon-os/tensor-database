@@ -1,0 +1,13 @@
+import "shared/commerce"
+
+insert into "store/products" as p: commerce.Product {
+    id:          gen_uuid(),
+    name:        "Leather Wallet",
+    price:       49.99,
+    stock:       200,
+    description: "Full-grain leather bifold wallet"
+}
+returning {
+    id:   p.id,
+    name: p.name
+}

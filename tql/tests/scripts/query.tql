@@ -1,0 +1,11 @@
+import "shared/commerce"
+
+from "store/products" as p: commerce.Product
+where p.stock > 0
+select {
+    id:    p.id,
+    name:  p.name,
+    price: p.price
+}
+order by p.price asc
+limit 10
