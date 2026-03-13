@@ -1,7 +1,7 @@
 <div align="center">
   <img src="./assets/logo_v3.png" alt="Tensor Database" width="400px">
 
-![Vector](https://img.shields.io/badge/Database-blue)
+![Framework](https://img.shields.io/badge/Vector-Database-blue)
 ![Query](https://img.shields.io/badge/Query-TQL%20Pipeline-blue)
 ![Storage](https://img.shields.io/badge/Storage-SST%20%2B%20RBM%20%2B%20HNSW-blue)
 ![AI](https://img.shields.io/badge/AI-Embeddings%20%2B%20Reasoning-blue)
