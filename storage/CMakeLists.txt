@@ -22,7 +22,6 @@ add_library(tensor_storage
 target_include_directories(tensor_storage
     PUBLIC 
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        ${VCPKG_INSTALLED_DIR}/x64-linux/include
     PRIVATE 
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
@@ -39,3 +38,25 @@ target_link_libraries(tensor_storage
 
 # Require C++17
 target_compile_features(tensor_storage PUBLIC cxx_std_17)
+
+# 5. Build the test executable
+add_executable(storage_tests
+    tests/main.cpp
+)
+
+target_include_directories(storage_tests
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(storage_tests
+    PRIVATE
+        tensor_storage
+        Crc32c::crc32c
+        Snappy::snappy
+        roaring::roaring
+        hnswlib::hnswlib
+        msgpack-c
+)
+
+target_compile_features(storage_tests PRIVATE cxx_std_17)
