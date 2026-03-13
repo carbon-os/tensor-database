@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="./assets/logo_.png" alt="Tensor Database" width="400px">
+  <img src="./assets/logo_v3.png" alt="Tensor Database" width="400px">
 
 ![Framework](https://img.shields.io/badge/Tensor-Framework-blue)
 ![Query](https://img.shields.io/badge/Query-TQL%20Pipeline-blue)
