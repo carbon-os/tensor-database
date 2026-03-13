@@ -1,4 +1,14 @@
-# Tensor Database
+<div align="center">
+  <img src="./assets/logo_.png" alt="Tensor Database" width="400px">
+
+![Framework](https://img.shields.io/badge/Tensor-Framework-blue)
+![Query](https://img.shields.io/badge/Query-TQL%20Pipeline-blue)
+![Storage](https://img.shields.io/badge/Storage-SST%20%2B%20RBM%20%2B%20HNSW-blue)
+![AI](https://img.shields.io/badge/AI-Embeddings%20%2B%20Reasoning-blue)
+
+</div>
+
+<br>
 
 A modern AI database built for applications that need fast relational queries, full-text search, semantic vector search, and native reasoning over raw text — all in one engine, with no external dependencies.
 
