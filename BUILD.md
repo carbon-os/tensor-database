@@ -54,6 +54,19 @@ cd ..
 
 ## Building
 ```bash
+
+
+cmake -B build \
+  -DCMAKE_TOOLCHAIN_FILE=vcpkg/scripts/buildsystems/vcpkg.cmake \
+  -DCMAKE_CXX_COMPILER=g++-13 \
+  -DCMAKE_CUDA_COMPILER=/usr/local/cuda-12.4/bin/nvcc \
+  -DCMAKE_CUDA_HOST_COMPILER=g++-13 \
+  -DCMAKE_CUDA_FLAGS="-D__STRICT_ANSI__" \
+  -DGGML_CUDA=ON \
+  -DCMAKE_BUILD_TYPE=Release
+
+
+
 cmake -B build \
   -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake \
   -DCMAKE_BUILD_TYPE=Release
@@ -147,6 +160,11 @@ nvidia-smi
 # 4. Rebuild
 ./vcpkg/vcpkg install
 cmake --build build --parallel
+
+./vcpkg/vcpkg install --rebuild llama-cpp
+
+
+apt install gcc-13 g++-13
 
 
 mkdir -p models

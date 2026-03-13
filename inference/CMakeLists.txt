@@ -1,4 +1,5 @@
 find_package(llama CONFIG REQUIRED)
+find_package(CUDAToolkit REQUIRED)
 
 add_library(inference STATIC
     src/embed.cpp
@@ -15,7 +16,8 @@ target_include_directories(inference
 
 target_link_libraries(inference
     PRIVATE
-        llama
+        llama::llama
+        CUDA::cudart
 )
 
 target_compile_features(inference PUBLIC cxx_std_17)

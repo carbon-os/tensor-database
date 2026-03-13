@@ -5,10 +5,7 @@
     "antlr4",
     "crc32c",
     "hnswlib",
-    {
-      "name": "llama-cpp",
-      "features": ["cuda"]
-    },
+    "llama-cpp",
     "msgpack-c",
     "msquic",
     "roaring",
