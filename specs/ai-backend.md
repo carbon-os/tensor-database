@@ -34,7 +34,7 @@ limit 10
 ```tql
 import "shared/commerce"
 
-let query_vec = embed("gift ideas under fifty dollars")
+let query_vec: vector(768) = embed("gift ideas under fifty dollars")
 
 from "store/products" as p: commerce.Product
 where p.stock > 0 and p.price < 50.00
@@ -46,12 +46,17 @@ limit 10
 
 ## `prompt()` — Reasoning Over Raw Text
 
-`prompt()` takes a natural language prompt and runs the nano+aggregator inference
-pipeline over a raw text field, returning a fully typed result that flows into
-the rest of the pipeline like any other variable.
+`prompt()` takes a source field, a natural language prompt, and a mode constant.
+It runs the nano+aggregator inference pipeline over the source field and returns
+a fully typed result bound via `let` that flows into the rest of the pipeline
+like any other variable.
 ```tql
-prompt("prompt", tensor.REASONING)   // nano+aggregator pipeline — full reading comprehension
+let result: OutputType = prompt(source_field, "query", tensor.REASONING)
 ```
+
+The type annotation on the `let` binding is required. The declared type is used
+as the output contract for the aggregator model — it must be a type defined in
+an imported package.
 
 ### In a Query Pipeline
 ```tql
@@ -59,7 +64,8 @@ import "shared/commerce"
 
 from "store/products" as p: commerce.Product
 where p.stock > 0
-prompt("gift ideas under fifty dollars", tensor.REASONING) from p.raw_data as result: commerce.ProductResult
+
+let result: commerce.ProductResult = prompt(p.raw_data, "gift ideas under fifty dollars", tensor.REASONING)
 
 select {
     name:   result.name,
@@ -135,3 +141,4 @@ Status:        running
 Embedding:     tensor.SEARCH, tensor.CLASSIFY, tensor.CODE
 Prompt:        tensor.REASONING
 Latency:       0.8ms avg embed / 42ms avg prompt (last 100 calls)
+```

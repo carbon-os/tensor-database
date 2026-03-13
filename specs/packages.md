@@ -57,12 +57,43 @@ The `as` binding is permanent. Once a path is created with a type contract, the 
 
 ## 3. Importing Types
 
-Any `.tql` file that references a type must import the package that defines it. There are no implicit global scopes.
+Any `.tql` file that references a type must import the package that defines it.
+
 ```tql
 import "shared/commerce"
 ```
 
-The import resolves at compile time. If the package file is missing or the referenced type does not exist within it, the pipeline fails before execution begins — not at runtime against live data.
+### Rules
+
+**One import per line.** There is no multi-package import syntax.
+```tql
+// correct
+import "shared/commerce"
+import "shared/identity"
+
+// not valid
+import "shared/commerce", "shared/identity"
+```
+
+**No aliasing.** The `as` keyword is not valid on an import statement. The package name declared inside the package file (`package commerce`) is always the namespace used to reference its types.
+```tql
+// correct
+import "shared/commerce"
+// types are referenced as commerce.Product, commerce.Order
+
+// not valid
+import "shared/commerce" as shop
+```
+
+**Imports must appear at the top of the file**, before any pipeline statements, DDL, or mutation blocks.
+
+**Paths are string literals** resolved relative to the workspace root. The `.tql` extension is omitted.
+```tql
+import "shared/commerce"       // resolves to shared/commerce.tql
+import "shared/types/identity" // resolves to shared/types/identity.tql
+```
+
+**Resolution is compile-time only.** If the package file does not exist, or a referenced type is not declared within it, the pipeline fails before execution begins — not at runtime against live data. There is no lazy loading.
 
 ---
 

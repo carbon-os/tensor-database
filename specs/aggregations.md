@@ -118,7 +118,7 @@ order by total_spent desc
 
 ## `let` Bindings With Aggregations
 
-`let` bindings after `group by` have access to aggregate values, letting you compute derived metrics cleanly before the `select` projection.
+`let` bindings after `group by` have access to aggregate values, letting you compute derived metrics cleanly before the `select` projection. As with all `let` bindings, an explicit type annotation is required.
 ```tql
 import "shared/commerce"
 
@@ -126,9 +126,9 @@ from "store/orders" as o: commerce.Order
 where o.status == "completed"
 group by o.customer_id
 
-let total_spent   = sum(o.total)
-let order_count   = count(*)
-let average_order = total_spent / order_count
+let total_spent:   decimal(10,2) = sum(o.total)
+let order_count:   int32         = count(*)
+let average_order: decimal(10,2) = total_spent / order_count
 
 having total_spent > 500.00
 

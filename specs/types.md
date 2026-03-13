@@ -2,6 +2,46 @@
 
 ---
 
+## Type Annotations
+
+Every `let` binding in a `.tql` pipeline requires an explicit type annotation. The compiler rejects any `let` declaration where the type is absent — there is no type inference.
+
+```tql
+// correct
+let threshold: int32         = 20
+let label:     text          = "pending"
+let active:    bool          = true
+let total:     decimal(10,2) = 0.00
+
+// compile-time error — type annotation missing
+let threshold = 20
+let label     = "pending"
+```
+
+This applies everywhere `let` appears — before `from`, between `where` and `select`, inside aggregation pipelines, and inside mutation pipelines. No exceptions.
+
+---
+
+## Comments
+
+Tensor Database uses `//` for line comments. A `//` and everything following it on that line is ignored by the compiler.
+
+```tql
+// this is a full line comment
+let threshold: int32 = 20   // this is an inline comment
+```
+
+Block comments using `/* */` are not valid in `.tql`. Use `//` line comments exclusively.
+
+```tql
+// not valid — block comments are not supported
+/* let threshold: int32 = 20 */
+```
+
+Comments are valid anywhere whitespace is valid in a pipeline — before statements, after field declarations, and between pipeline stages.
+
+---
+
 ## int32
 ```tql
 let count: int32 = 1048576
@@ -68,7 +108,7 @@ let os_name: text = "Tensor-OS"
 let status:  text = "running"
 ```
 
-A dynamically sized, UTF-8 encoded string. Replaces `CHAR`, `VARCHAR`, and `TEXT`. Tensor Database drops artificial character limits at the schema level; developers shouldn't have to guess if a string will be 255 or 256 characters long. Stored efficiently in the LSM tree with native support for the Inverted Index (`.rbm`) module for lightning-fast BM25 keyword searches.
+A dynamically sized, UTF-8 encoded string. Replaces `CHAR`, `VARCHAR`, and `TEXT`. Tensor Database drops artificial character limits at the schema level; developers shouldn't have to guess if a string will be 255 or 256 characters long. Stored efficiently in the LSM tree with native support for the Inverted Index (`.rbm`) module for lightning-fast BM25 keyword searches. String literals are always enclosed in double quotes. Single quotes are not valid string syntax in `.tql`.
 
 ---
 
@@ -98,23 +138,45 @@ let raw_data:  json                = '{"agent": "local", "uptime": 3600}'
 let typed_cfg: json<map[text]bool> = '{"debug": true, "trace": false}'
 ```
 
-A schema-flexible data type stored internally as binary msgpack for zero-parsing-overhead reads. Can be used loosely as raw `json`, or strictly constrained using a type parameter (`json<T>`) to enforce schema validation at the database boundary before the data is ever written to the `.wal`.
+A schema-flexible data type stored internally as binary msgpack for zero-parsing-overhead reads. Can be used loosely as raw `json`, or strictly constrained using a type parameter (`json<T>`) to enforce schema validation at the database boundary before the data is ever written to the `.wal`. Use `json<T>` when you need nested or mixed-structure data — it is the correct type for anything that would require a nested `array`.
 
 ---
 
 ## array<T>
+
 ```tql
 let ports: array<int32> = [80, 443, 8080]
 let flags: array<text>  = ["--daemon", "--verbose"]
 ```
 
-A typed, homogeneous list of elements. Provides a clean way to store multiple related scalar values without needing to architect a separate junction table. Arrays are stored contiguously in the `.sst` blocks.
+A typed, homogeneous list of scalar elements. `T` must be a scalar type — one of `int32`, `int64`, `float32`, `float64`, `decimal`, `bool`, `text`, `uuid`, or `timestamp`. Arrays are stored contiguously in the `.sst` blocks.
+
+### No Nesting
+
+Nested arrays are not valid in `.tql` and are a compile-time error. `T` cannot itself be an `array`, `json`, or `vector` type.
+
+```tql
+// correct
+let ports: array<int32> = [80, 443, 8080]
+
+// compile-time error — nested array
+let matrix: array<array<int32>> = [[1, 2], [3, 4]]
+
+// compile-time error — array of json
+let configs: array<json> = [...]
+```
+
+If you need nested or mixed-structure data, use `json<T>` instead:
+```tql
+// correct approach for nested structures
+let config: json<map[text]array<int32>> = '{"ports": [80, 443]}'
+```
 
 ---
 
 ## vector(n)
 ```tql
-let memory: vector(1536) = embed("System booted successfully", 'llama-3-8b')
+let memory: vector(1536) = embed("System booted successfully", tensor.SEARCH)
 let latent: vector(256)  = [0.12, -0.45, 0.88, ...]
 ```
 
@@ -125,7 +187,7 @@ A fixed-size array of `float32` values, purpose-built for AI and RAG pipelines. 
 ## T? — Opt-In Nullable
 ```tql
 let alias:  text? = null
-let parent: uuid? = "550e8400-e29b-41d4-a716-446655440000"
+let parent: uuid? = "550e8400-e29b-41d4-a456-426614174000"
 ```
 
 Tensor Database types are strictly **non-nullable by default**. A variable or column typed as `text` must contain a string. If a value might be missing, it must be explicitly marked nullable by appending `?` to the type. This eliminates `NULL` pointer exceptions at the compiler level and forces developers to handle missing data explicitly in their `.tql` pipelines.
