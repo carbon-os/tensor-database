@@ -116,20 +116,36 @@ ldconfig -p | grep cuda
 
 
 
-# 1. Install CUDA toolkit (Debian trixie needs the runfile, no apt repo yet)
-wget https://developer.download.nvidia.com/compute/cuda/12.4.0/local_installers/cuda_12.4.0_550.54.14_linux.run
-sudo sh cuda_12.4.0_550.54.14_linux.run --toolkit --silent --override
+# Install just the essentials — compiler, libraries, no GUI profiling tools
+apt-get install -y \
+  cuda-compiler-12-4 \
+  cuda-libraries-12-4 \
+  cuda-libraries-dev-12-4 \
+  libcublas-12-4 \
+  libcublas-dev-12-4
 
-# 2. Add to PATH
-echo 'export PATH=/usr/local/cuda/bin:$PATH' >> ~/.bashrc
-echo 'export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH' >> ~/.bashrc
+
+apt install nvidia-cuda-toolkit
+
+echo 'export PATH=/usr/local/cuda-12.4/bin:$PATH' >> ~/.bashrc
+echo 'export LD_LIBRARY_PATH=/usr/local/cuda-12.4/lib64:$LD_LIBRARY_PATH' >> ~/.bashrc
 source ~/.bashrc
+
+./vcpkg/vcpkg search llama-cpp
+
+
+nvcc --version
+nvidia-smi
+
+
+
+
 
 # 3. Enable CUDA feature in vcpkg.json — change the llama-cpp entry to:
 # { "name": "llama-cpp", "features": ["cuda"] }
 
 # 4. Rebuild
-vcpkg install
+./vcpkg/vcpkg install
 cmake --build build --parallel
 
 
