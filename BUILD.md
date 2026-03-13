@@ -116,6 +116,20 @@ cmake --build build --parallel
 
 
 
+# Run
+TENSOR_LLM_MODEL=/home/user/models/qwen3-1.7b-instruct-q4_k_m.gguf \
+./build/tensor-llm/tensor-llm port 4000
+
+# Test — stream tokens
+curl -N -X POST http://localhost:4000/generate \
+  -H "Content-Type: application/json" \
+  -d '{"prompt":"Explain CUDA unified memory in simple terms","max_tokens":128}'
+
+# Health check
+curl http://localhost:4000/health
+
+
+
 mkdir -p models
 
 # ── Reasoning models ──────────────────────────────────────────────────────

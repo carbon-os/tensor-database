@@ -3,9 +3,14 @@
   "version": "0.1.0",
   "dependencies": [
     "antlr4",
+    "cpp-httplib",
     "crc32c",
     "hnswlib",
     "llama-cpp",
+    {
+      "name": "ggml",
+      "features": ["cuda"]
+    },
     "msgpack-c",
     "msquic",
     "roaring",
@@ -13,45 +18,15 @@
     "snappy"
   ],
   "overrides": [
-    {
-      "name": "antlr4",
-      "version": "4.13.2",
-      "port-version": 1
-    },
-    {
-      "name": "crc32c",
-      "version": "1.1.2",
-      "port-version": 2
-    },
-    {
-      "name": "hnswlib",
-      "version": "0.8.0"
-    },
-    {
-      "name": "llama-cpp",
-      "version": "7146"
-    },
-    {
-      "name": "msgpack-c",
-      "version": "6.1.0"
-    },
-    {
-      "name": "msquic",
-      "version": "2.4.8"
-    },
-    {
-      "name": "roaring",
-      "version": "4.6.0"
-    },
-    {
-      "name": "simdjson",
-      "version": "4.3.1"
-    },
-    {
-      "name": "snappy",
-      "version": "1.2.2",
-      "port-version": 1
-    }
+    { "name": "antlr4",      "version": "4.13.2", "port-version": 1 },
+    { "name": "cpp-httplib", "version": "0.18.3"                     },
+    { "name": "crc32c",      "version": "1.1.2",  "port-version": 2 },
+    { "name": "hnswlib",     "version": "0.8.0"                      },
+    { "name": "msgpack-c",   "version": "6.1.0"                      },
+    { "name": "msquic",      "version": "2.4.8"                      },
+    { "name": "roaring",     "version": "4.6.0"                      },
+    { "name": "simdjson",    "version": "4.3.1"                      },
+    { "name": "snappy",      "version": "1.2.2",  "port-version": 1  }
   ],
-  "builtin-baseline": "a44707152fabbedcf1c17fe80d7bfb7d9370d8d5"
+  "builtin-baseline": "7e7032a82d7c0674a6e7e399a0bad928c44af473"
 }

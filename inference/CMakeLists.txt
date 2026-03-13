@@ -16,7 +16,7 @@ target_include_directories(inference
 
 target_link_libraries(inference
     PRIVATE
-        llama::llama
+        llama
         CUDA::cudart
 )
 
