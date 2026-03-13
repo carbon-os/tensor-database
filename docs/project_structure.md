@@ -41,24 +41,41 @@ tensor-db/
 │           ├── query.tql
 │           └── update.tql
 │
-├── storage/
-│   ├── include/
-│   │   └── tensor/
-│   │       └── storage/
-│   │           ├── wal.hpp
-│   │           ├── sst.hpp
-│   │           ├── rbm.hpp
-│   │           ├── vec.hpp
-│   │           ├── hnsw.hpp
-│   │           └── tok.hpp
-│   └── src/
-│       ├── wal.cpp
-│       ├── sst.cpp
-│       ├── rbm.cpp
-│       ├── vec.cpp
-│       ├── hnsw.cpp
-│       └── tok.cpp
-│
+
+
+storage/
+├── CMakeLists.txt              # Storage library build configuration
+├── include/
+│   └── tensor/
+│       └── storage/
+│           ├── wal.hpp         # Write-Ahead Log (durability & crash recovery)
+│           ├── sst.hpp         # Sorted String Table (primary row storage)
+│           ├── rbm.hpp         # Roaring Bitmap (inverted index for keyword search)
+│           ├── vec.hpp         # Vector storage (mmap'd raw float32 arrays)
+│           ├── hnsw.hpp        # HNSW index (approximate nearest neighbor search)
+│           ├── tok.hpp         # Tokenizer (text processing for the inverted index)
+│           ├── page.hpp        # Optional: Abstraction for Snappy-compressed SST pages
+│           └── options.hpp     # Optional: Centralized config (cache sizes, paths, etc.)
+├── src/
+│   ├── wal.cpp
+│   ├── sst.cpp
+│   ├── rbm.cpp
+│   ├── vec.cpp
+│   ├── hnsw.cpp
+│   ├── tok.cpp
+│   └── page.cpp                # Implementation of page compression/decompression
+└── tests/
+    ├── CMakeLists.txt          # Test build configuration
+    ├── wal_test.cpp            # Tests for WAL append, flush, and recovery
+    ├── sst_test.cpp            # Tests for SST row writes, Snappy compression, and scans
+    ├── rbm_test.cpp            # Tests for CRoaring bitmap intersections
+    ├── vec_test.cpp            # Tests for mmap zero-copy vector reads
+    ├── hnsw_test.cpp           # Tests for hnswlib integration
+    └── tok_test.cpp            # Tests for text tokenization
+
+
+
+
 ├── inference/
 │   ├── include/
 │   │   └── tensor/

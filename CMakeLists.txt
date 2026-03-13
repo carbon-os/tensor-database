@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(antlr4-runtime CONFIG REQUIRED)
 
 add_subdirectory(tql)
-# add_subdirectory(storage)
+add_subdirectory(storage)   # <-- Uncomment this line
 # add_subdirectory(inference)
 # add_subdirectory(net)
 # add_subdirectory(db)

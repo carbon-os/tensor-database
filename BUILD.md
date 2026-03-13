@@ -38,6 +38,11 @@ git clone https://github.com/microsoft/vcpkg.git --depth 1
 ./vcpkg/vcpkg install
 ```
 
+**vcpkg hash (optional)**
+```bash
+./vcpkg/vcpkg x-update-baseline --add-initial-baseline
+```
+
 **3. Generate the TQL parser**
 ```bash
 cd parser
