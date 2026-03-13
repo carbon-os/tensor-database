@@ -1,0 +1,63 @@
+Tensor DB
+Copyright (c) 2026 Netangular Technologies
+Author: Daniel Vanderloo
+
+This product includes software developed by third parties.
+The following dependencies are used under their respective licenses.
+
+--------------------------------------------------------------------------------
+MIT License
+--------------------------------------------------------------------------------
+
+llama.cpp — https://github.com/ggml-org/llama.cpp
+Copyright (c) 2023 Georgi Gerganov
+License: MIT
+
+MsQuic — https://github.com/microsoft/msquic
+Copyright (c) Microsoft Corporation
+License: MIT
+
+--------------------------------------------------------------------------------
+Apache License 2.0
+--------------------------------------------------------------------------------
+
+hnswlib — https://github.com/nmslib/hnswlib
+Copyright (c) 2017 Yury Malkov and nmslib team
+License: Apache 2.0
+
+CRoaring (roaring) — https://github.com/RoaringBitmap/CRoaring
+Copyright (c) 2016 The CRoaring authors
+License: Apache 2.0
+
+simdjson — https://github.com/simdjson/simdjson
+Copyright (c) 2018-2024 The simdjson authors
+License: Apache 2.0
+
+--------------------------------------------------------------------------------
+BSD 3-Clause License
+--------------------------------------------------------------------------------
+
+ANTLR4 C++ Runtime — https://github.com/antlr/antlr4
+Copyright (c) 2012-2022 The ANTLR Project
+License: BSD 3-Clause
+
+crc32c — https://github.com/google/crc32c
+Copyright (c) 2017 The CRC32C Authors
+License: BSD 3-Clause
+
+Snappy — https://github.com/google/snappy
+Copyright (c) 2011 Google Inc.
+License: BSD 3-Clause
+
+--------------------------------------------------------------------------------
+Boost Software License 1.0
+--------------------------------------------------------------------------------
+
+msgpack-c — https://github.com/msgpack/msgpack-c
+Copyright (c) 2008-2016 msgpack.org
+License: Boost Software License 1.0
+
+--------------------------------------------------------------------------------
+
+Full license texts for each dependency are available in their respective
+source repositories and in the vcpkg_installed/ directory of this project.

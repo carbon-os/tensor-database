@@ -1,21 +1,43 @@
+GNU AFFERO GENERAL PUBLIC LICENSE
+                       Version 3, 19 November 2007
+
 Tensor DB
 Copyright (c) 2026 Netangular Technologies
 Author: Daniel Vanderloo
 
-This software is dual-licensed:
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-1. GNU Affero General Public License v3.0 (AGPL-3.0)
-   For open-source and non-commercial use.
-   See: https://www.gnu.org/licenses/agpl-3.0.html
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
 
-   If you use this software to provide a network service, you must
-   make the complete corresponding source code available under AGPL-3.0.
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-2. Netangular Commercial License
-   For commercial use, SaaS deployments, or when AGPL-3.0 terms are
-   incompatible with your use case.
-   Contact: licensing@netangular.com
+--------------------------------------------------------------------------------
+IMPORTANT — NETWORK USE CLAUSE (AGPL-3.0 Section 13)
+--------------------------------------------------------------------------------
 
-Unless you have purchased a commercial license, this software is
-distributed under the AGPL-3.0 license. See the LICENSE-AGPL file
-for the full license text.
+If you modify Tensor DB and run it as a service that users interact with over
+a network, you MUST make the complete corresponding source code of your modified
+version available to those users under this license.
+
+This applies to SaaS deployments, hosted APIs, managed database services, and
+any other form of network-accessible deployment.
+
+--------------------------------------------------------------------------------
+COMMERCIAL LICENSE AVAILABLE
+--------------------------------------------------------------------------------
+
+If you cannot comply with the terms of the AGPL-3.0 — for example, because you
+are embedding Tensor DB in a proprietary product, offering it as a managed
+service, or are unable to publish your modifications — a commercial license is
+available from Netangular Technologies.
+
+Contact: support@netangular.com
+
+See LICENSE-COMMERCIAL for terms.

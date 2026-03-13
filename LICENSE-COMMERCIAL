@@ -1,0 +1,75 @@
+Netangular Technologies — Tensor DB Commercial License
+
+Copyright (c) 2026 Netangular Technologies
+Author: Daniel Vanderloo
+Contact: support@netangular.com
+
+--------------------------------------------------------------------------------
+OVERVIEW
+--------------------------------------------------------------------------------
+
+Tensor DB is available under a dual-license model:
+
+  1. GNU Affero General Public License v3.0 (AGPL-3.0) — see LICENSE
+     Free to use for open-source projects and internal use, provided you comply
+     with the copyleft and network-use disclosure requirements.
+
+  2. Netangular Commercial License (this document)
+     Required for any use case that cannot comply with AGPL-3.0.
+
+--------------------------------------------------------------------------------
+WHEN YOU NEED A COMMERCIAL LICENSE
+--------------------------------------------------------------------------------
+
+You require a commercial license if you:
+
+  - Offer Tensor DB as a hosted, managed, or cloud database service to
+    third parties, whether paid or free.
+
+  - Embed Tensor DB in a proprietary product distributed to customers or
+    end users, where you cannot or do not wish to publish source code.
+
+  - Use Tensor DB internally but cannot comply with the network-use source
+    disclosure requirements of AGPL-3.0.
+
+  - Require OEM redistribution rights, white-labeling, or private forks
+    without source disclosure obligations.
+
+--------------------------------------------------------------------------------
+WHAT A COMMERCIAL LICENSE GRANTS
+--------------------------------------------------------------------------------
+
+A commercial license from Netangular Technologies grants you:
+
+  - The right to use, modify, and distribute Tensor DB without the copyleft
+    and source-disclosure requirements of AGPL-3.0.
+
+  - The right to offer Tensor DB as a managed or hosted service.
+
+  - The right to embed Tensor DB in proprietary products without publishing
+    your modifications.
+
+  - Access to priority support, long-term support (LTS) builds, and
+    commercial SLAs as negotiated.
+
+--------------------------------------------------------------------------------
+OBTAINING A COMMERCIAL LICENSE
+--------------------------------------------------------------------------------
+
+To inquire about pricing and terms:
+
+  Email:   support@netangular.com
+  Subject: Tensor DB Commercial License Inquiry
+
+Please include a brief description of your intended use case and estimated
+deployment scale. Netangular Technologies will respond within 5 business days.
+
+--------------------------------------------------------------------------------
+NO WARRANTY
+--------------------------------------------------------------------------------
+
+Tensor DB is provided "as is" without warranty of any kind, express or implied,
+including but not limited to the warranties of merchantability, fitness for a
+particular purpose, and non-infringement. In no event shall Netangular
+Technologies or Daniel Vanderloo be liable for any claim, damages, or other
+liability arising from the use of this software.
